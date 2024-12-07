@@ -1,8 +1,8 @@
-version: '3.8'
+# docker-compose.yml
+
 
 services:
   grader:
-    image: grading-env
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,3 +11,4 @@ services:
       - ./input:/grading/input
       - ./expected_output:/grading/expected_output
       - ./summary:/grading/summary
+      - ./logs:/grading/logs

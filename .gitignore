@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+
+# .txt files are input output files
+*.txt
+
+# .tgz files are compressed files from students
+*.tgz
+
 # Distribution / packaging
 .Python
 build/

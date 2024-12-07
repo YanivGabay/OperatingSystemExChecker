@@ -23,6 +23,12 @@ actual container will use the test one.
 docker build -f Dockerfile.test -t gcc-8.5.0-test .
 ```
 
+than you can just use docker compose
+
+```bash
+docker-compose up
+```
+
 
 ## Contributing
 

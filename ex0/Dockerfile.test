@@ -1,9 +1,14 @@
 # Dockerfile.test
 FROM rockylinux/rockylinux:8
 
-# Install necessary development tools and dependencies
-RUN dnf install -y gcc gcc-c++ valgrind tar python3 && \
+# Install dnf plugins core, reset and enable Python 3.8 module, install dependencies, and create symlinks in a single RUN command
+RUN dnf install -y dnf-plugins-core && \
+    dnf module reset python36 -y && \
+    dnf module enable python38 -y && \
+    dnf install -y gcc gcc-c++ valgrind tar python38 python38-devel python38-pip && \
+    ln -s /usr/bin/python3.8 /usr/bin/python3 && \
+    ln -s /usr/bin/pip3.8 /usr/bin/pip3 && \
     dnf clean all
 
-# Verify GCC version
-RUN gcc --version
+# Verify GCC and Python versions
+RUN gcc --version && python3 --version
