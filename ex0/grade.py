@@ -8,7 +8,7 @@ import json
 import re
 import logging
 from datetime import datetime
-from difflib import unified_diff
+from difflib import ndiff
 
 # Configuration Constants
 SUBMISSIONS_DIR = 'submissions'
@@ -159,27 +159,31 @@ def compile_code(extract_path, c_file):
 
 # Run Valgrind
 def run_valgrind(extract_path):
+    input_file_path = os.path.join('/grading', INPUT_FILE)  # Ensure this is correct
     valgrind_cmd = [
         'valgrind',
         '--leak-check=full',
         '--error-exitcode=1',
         '--log-file=valgrind.log',
-        './program'
+        './program',
+        input_file_path  # Pass the input file path as an argument
     ]
     try:
-        with open(INPUT_FILE, 'r') as infile:
-            result = subprocess.run(
-                valgrind_cmd,
-                cwd=extract_path,
-                stdin=infile,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                  universal_newlines=True,
-                timeout=TIMEOUT_VALGRIND
-            )
+        result = subprocess.run(
+            valgrind_cmd,
+            cwd=extract_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=TIMEOUT_VALGRIND
+        )
         # Read valgrind log
-        with open(os.path.join(extract_path, 'valgrind.log'), 'r') as f:
-            valgrind_output = f.read()
+        valgrind_log_path = os.path.join(extract_path, 'valgrind.log')
+        if os.path.exists(valgrind_log_path):
+            with open(valgrind_log_path, 'r') as f:
+                valgrind_output = f.read()
+        else:
+            valgrind_output = "Valgrind log not found."
         logging.info(f"Ran Valgrind with return code {result.returncode}")
         return result.returncode, valgrind_output.strip()
     except subprocess.TimeoutExpired:
@@ -189,20 +193,22 @@ def run_valgrind(extract_path):
         logging.error(f"Valgrind failed in {extract_path}: {e}")
         return -1, str(e)
 
+
 # Execute Program
+
 def execute_program(extract_path):
-    execute_cmd = ['./program']
+    input_file_path = os.path.join('/grading', INPUT_FILE)
+    logging.info(f"Input file given to program: {input_file_path}")
+    execute_cmd = ['./program', input_file_path]
     try:
-        with open(INPUT_FILE, 'r') as infile:
-            result = subprocess.run(
-                execute_cmd,
-                cwd=extract_path,
-                stdin=infile,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                  universal_newlines=True,
-                timeout=TIMEOUT_EXECUTION
-            )
+        result = subprocess.run(
+            execute_cmd,
+            cwd=extract_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True,
+            timeout=TIMEOUT_EXECUTION
+        )
         logging.info(f"Executed program with return code {result.returncode}")
         return result.returncode, result.stdout.strip(), result.stderr.strip()
     except subprocess.TimeoutExpired:
@@ -211,6 +217,8 @@ def execute_program(extract_path):
     except Exception as e:
         logging.error(f"Program execution failed in {extract_path}: {e}")
         return -1, "", str(e)
+
+
 
 # Compare Output
 def compare_output(actual_output, expected_output):
@@ -231,10 +239,14 @@ def compare_output(actual_output, expected_output):
 
 # Generate Diff
 def generate_diff(actual_output, expected_output):
+    """
+    Generate a human-readable diff between actual and expected outputs using ndiff.
+    """
     expected_lines = [line.rstrip() for line in expected_output.strip().splitlines()]
     actual_lines = [line.rstrip() for line in actual_output.strip().splitlines()]
-    diff = '\n'.join(unified_diff(expected_lines, actual_lines, fromfile='expected_output', tofile='actual_output'))
+    diff = '\n'.join(ndiff(expected_lines, actual_lines))
     return diff
+
 
 # Check Comments in .c File and Extract First 10 Lines
 def check_comments(c_file_path):
@@ -266,6 +278,8 @@ def process_submission(tgz_file, expected_output):
         'Output Correct': True,
         'Comments Present': True,
         'README First 10 Lines': [],
+        'Program Stderr': "",
+        'Actual Output': "", 
         'Diff': "",
         'Points Deducted': 0,
         'Final Score': TOTAL_POINTS
@@ -312,8 +326,6 @@ def process_submission(tgz_file, expected_output):
         deductions += POINTS['content_structure']
 
     if content_ok:
-       
- 
         logging.info(f"Processing {c_file} and {readme_file}")
         c_file_path = os.path.join(extract_path, c_file)
         readme_path = os.path.join(extract_path, readme_file)
@@ -342,6 +354,8 @@ def process_submission(tgz_file, expected_output):
 
             # Execute Program
             exec_returncode, actual_output, exec_stderr = execute_program(extract_path)
+            log['Actual Output'] = actual_output  # Record actual output
+            log['Program Stderr'] = exec_stderr  # Optionally record stderr
             if exec_returncode != 0:
                 log['Output Correct'] = False
                 deductions += POINTS['output_correct']
@@ -354,7 +368,7 @@ def process_submission(tgz_file, expected_output):
                 # Generate diff
                 diff = generate_diff(actual_output, expected_output)
                 log['Diff'] = diff
-
+           
         # Check Comments and Extract First 10 Lines
         comments_present, first_10_lines = check_comments(c_file_path)
         log['Comments Present'] = comments_present
