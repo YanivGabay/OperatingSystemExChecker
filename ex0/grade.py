@@ -83,7 +83,7 @@ def correct_filename(filename):
     Example pattern: studentID_assignment.tgz
     Modify the regex as per actual naming conventions.
     """
-    # Example: student123_assignment.tgz
+    # Example: ex0.tgz
     pattern = r'^ex0\.tgz$'
     return re.match(pattern, filename) is not None
 
@@ -232,7 +232,8 @@ def check_comments(c_file_path):
             logging.info(f"Found comment in {c_file_path}")
         else:
             logging.warning(f"No comments found in the first {MAX_COMMENT_LINES} lines of {c_file_path}")
-        return comments_present := comments_found, lines
+        # Since Python 3.6 doesn't support assignment expressions, we split the return
+        return comments_found, lines
     except Exception as e:
         logging.error(f"Failed to check comments in {c_file_path}: {e}")
         return False, []

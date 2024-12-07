@@ -1,9 +1,6 @@
 # Dockerfile
 FROM gcc-test
 
-# Install additional necessary packages for grading
-RUN dnf install -y valgrind tar && \
-    dnf clean all
 
 # Set the working directory
 WORKDIR /grading
