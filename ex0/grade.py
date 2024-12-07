@@ -58,7 +58,7 @@ def verify_gcc_version():
             [GCC_COMMAND, '--version'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+             universal_newlines=True,
             check=True
         )
         version_output = result.stdout.splitlines()[0]
@@ -92,11 +92,13 @@ def extract_submission(tgz_path, extract_path):
     try:
         with tarfile.open(tgz_path, 'r:gz') as tar:
             tar.extractall(path=extract_path)
-        logging.info(f"Extracted {tgz_path} to {extract_path}")
+        extracted_files = os.listdir(extract_path)
+        logging.info(f"Extracted files: {extracted_files}")
         return True, ""
     except Exception as e:
         logging.error(f"Failed to extract {tgz_path}: {e}")
         return False, str(e)
+
 
 # Check Content Structure
 def check_content_structure(extract_path):
@@ -105,15 +107,27 @@ def check_content_structure(extract_path):
     """
     try:
         files = os.listdir(extract_path)
+        logging.info(f"Extracted files: {files}")
+        c_files = []
+        readme_files = []
         c_files = [f for f in files if f.endswith('.c')]
         readme_files = [f for f in files if f.lower() == 'readme']
-        if len(c_files) != 1 or len(readme_files) != 1 or len(files) != 2:
-            logging.warning(f"Content structure invalid in {extract_path}. Files found: {files}")
-            return False, c_files, readme_files
-        return True, c_files[0], readme_files[0]
+
+        if len(c_files) != 1:
+            logging.error(f"Expected 1 .c file, found {len(c_files)}: {c_files}")
+        if len(readme_files) != 1:
+            logging.error(f"Expected 1 README file, found {len(readme_files)}: {readme_files}")
+        
+        if len(c_files) == 1 and len(readme_files) == 1:
+            logging.info(f"returning from check_cointent_structure True, {c_files[0]}, {readme_files[0]}")
+            return True, c_files[0], readme_files[0]
+        else:
+            return False, None, None
     except Exception as e:
         logging.error(f"Error checking content structure in {extract_path}: {e}")
-        return False, [], []
+        return False, None, None
+
+
 
 # Compile Code
 def compile_code(extract_path, c_file):
@@ -124,7 +138,7 @@ def compile_code(extract_path, c_file):
             cwd=extract_path,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+               universal_newlines=True
         )
         compile_output = result.stderr.strip()
         logging.info(f"Compiled {c_file} with return code {result.returncode}")
@@ -160,7 +174,7 @@ def run_valgrind(extract_path):
                 stdin=infile,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True,
+                  universal_newlines=True,
                 timeout=TIMEOUT_VALGRIND
             )
         # Read valgrind log
@@ -186,7 +200,7 @@ def execute_program(extract_path):
                 stdin=infile,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                text=True,
+                  universal_newlines=True,
                 timeout=TIMEOUT_EXECUTION
             )
         logging.info(f"Executed program with return code {result.returncode}")
@@ -292,17 +306,19 @@ def process_submission(tgz_file, expected_output):
         return log
 
     # Content Structure Check
-    content_ok, c_files, readme_files = check_content_structure(extract_path)
+    content_ok, c_file, readme_file = check_content_structure(extract_path)
     if not content_ok:
         log['Content Structure'] = False
         deductions += POINTS['content_structure']
 
     if content_ok:
-        c_file = c_files[0]
-        readme_file = readme_files[0]
+       
+ 
+        logging.info(f"Processing {c_file} and {readme_file}")
         c_file_path = os.path.join(extract_path, c_file)
         readme_path = os.path.join(extract_path, readme_file)
-
+        logging.info(f"Paths: {c_file_path}, {readme_path}")
+    
         # Compile Code
         returncode, warnings, errors = compile_code(extract_path, c_file)
         log['Compilation Warnings'] = warnings

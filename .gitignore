@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+# summary .json
+summary.json
 
 # .txt files are input output files
 *.txt
