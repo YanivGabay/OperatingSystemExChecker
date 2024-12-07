@@ -1,15 +1,12 @@
 # Dockerfile.test
-FROM centos:8
+FROM rockylinux/rockylinux:8
 
-# Install centos-release-scl to access Software Collections
+# Install Software Collections (SCL) to access devtoolset-8
 RUN dnf install -y centos-release-scl && \
+    dnf install -y devtoolset-8 && \
     dnf clean all
 
-# Install devtoolset-8 which includes GCC 8.5.0-22
-RUN dnf install -y devtoolset-8 && \
-    dnf clean all
-
-# Enable devtoolset-8 and create symbolic links for gcc and g++
+# Create symbolic links for gcc and g++ to access specific versions
 RUN ln -s /opt/rh/devtoolset-8/root/usr/bin/gcc /usr/local/bin/gcc-8.5.0 && \
     ln -s /opt/rh/devtoolset-8/root/usr/bin/g++ /usr/local/bin/g++-8.5.0
 
