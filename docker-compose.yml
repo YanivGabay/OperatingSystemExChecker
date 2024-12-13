@@ -1,0 +1,25 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  grader_ex0:
+    build:
+      context: ./ex0
+      dockerfile: Dockerfile
+    volumes:
+      - ./ex0/submissions:/grading/submissions
+      - ./ex0/input:/grading/input
+      - ./ex0/expected_output:/grading/expected_output
+      - ./ex0/summary:/grading/summary
+      - ./ex0/logs:/grading/logs
+
+  grader_ex1:
+    build:
+      context: ./ex1
+      dockerfile: Dockerfile
+    volumes:
+      - ./ex1/submissions:/grading/submissions
+      - ./ex1/input:/grading/input
+      - ./ex1/summary:/grading/summary
+      - ./ex1/logs:/grading/logs
