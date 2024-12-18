@@ -33,6 +33,7 @@ POINTS = {
     'output_correct_ex1a': 10,
     'output_correct_ex1b': 10,
     'child_processes': 10,
+    'command_execution': 10,
     'comments_present': 5,
     'readme_correct': 5
 }
@@ -340,7 +341,7 @@ def extract_student_info(folder_name):
         return "Unknown_ID", "Unknown_Name"
 
 # Process Each Submission
-def process_submission(student_id, student_name, submission_folder, expected_output_ex1a, expected_output_ex1b, expected_c_files, extra_c_files):
+def process_submission(student_id, student_name, submission_folder, commands_to_send, expected_c_files, extra_c_files):
     log = {
         'Student ID': student_id,
         'Student Name': student_name,
@@ -395,11 +396,8 @@ def process_submission(student_id, student_name, submission_folder, expected_out
         },
         'Command Execution Results': {
             './pid': None,
-            'pid': None,
             './char_in_str': None,
-            'char_in_str': None,
-            './unique_str': None,
-            'unique_str': None
+            './unique_str': None
         },
         'Issues': [],
         'Points Deducted': 0,
@@ -542,14 +540,9 @@ def process_submission(student_id, student_name, submission_folder, expected_out
 
             # Execute ex1a.c with two arguments: output filename and seed
             logging.info("Executing ex1a.c with arguments")
-            # Read arguments from input_ex1a.txt
-            input_ex1a_path = os.path.join(INPUT_DIR, 'input_ex1.txt')
             try:
-                with open(input_ex1a_path, 'r') as f:
-                    args_ex1a = f.read().strip().split()
-                if len(args_ex1a) != 2:
-                    raise ValueError("input_ex1.txt must contain exactly two arguments: <output_filename> <seed>")
-                output_filename, seed = args_ex1a
+                # Parse the first line of commands_to_send
+                output_filename, seed = commands_to_send[0].split()
                 exec_returncode, actual_output_ex1a, exec_stderr_ex1a = execute_program(
                     extract_path,
                     'ex1a',
@@ -575,22 +568,41 @@ def process_submission(student_id, student_name, submission_folder, expected_out
                         log['Issues'].append("Failed to read ex1a.c output file.")
                         deductions += POINTS['output_correct_ex1a']
             except Exception as e:
-                logging.error(f"Error processing input_ex1.txt: {e}")
+                logging.error(f"Error processing commands_to_send for ex1a.c: {e}")
                 log['Output Correct']['ex1a'] = False
                 log['Issues'].append("Invalid input for ex1a.c.")
                 deductions += POINTS['output_correct_ex1a']
 
-            # Execute ex1b.c with commands from input_ex1b.txt
+            # Execute ex1b.c with commands from commands_to_send
             logging.info("Executing ex1b.c with commands")
-            input_ex1b_path = os.path.join(INPUT_DIR, 'input_ex1.txt')  # Assuming ex1b commands are also in input_ex1.txt
             try:
-                with open(input_ex1b_path, 'r') as f:
-                    commands_ex1b = f.read().strip().splitlines()
+                # The rest of the commands are for ex1b.c
+                ex1b_commands = commands_to_send[1:]
+                # Ensure unique_str commands have arguments concatenated appropriately
+                # Since students do not use quotes, we need to adjust unique_str commands to pass a single argument
+                adjusted_ex1b_commands = []
+                for cmd in ex1b_commands:
+                    tokens = cmd.strip().split()
+                    if not tokens:
+                        continue
+                    command = tokens[0]
+                    args = tokens[1:]
+                    if command in ['./unique_str', 'unique_str']:
+                        # Combine all arguments into a single string
+                        if args:
+                            combined_arg = ' '.join(args)
+                            adjusted_ex1b_commands.append(f"{command} {combined_arg}")
+                        else:
+                            adjusted_ex1b_commands.append(command)
+                    else:
+                        # For other commands, keep as is
+                        adjusted_ex1b_commands.append(cmd)
+                
                 exec_returncode_b, actual_output_ex1b, exec_stderr_ex1b = execute_program(
                     extract_path,
                     'ex1b',
                     args=[],
-                    input_commands=commands_ex1b
+                    input_commands=adjusted_ex1b_commands
                 )
                 log['Program Stderr']['ex1b.c'] = exec_stderr_ex1b
                 log['Actual Output']['ex1b'] = actual_output_ex1b
@@ -602,49 +614,17 @@ def process_submission(student_id, student_name, submission_folder, expected_out
                     log['Output Correct']['ex1b'] = True
                     # No expected output to compare
             except Exception as e:
-                logging.error(f"Error processing input_ex1.txt for ex1b.c: {e}")
+                logging.error(f"Error processing commands_to_send for ex1b.c: {e}")
                 log['Output Correct']['ex1b'] = False
                 log['Issues'].append("Invalid input for ex1b.c.")
                 deductions += POINTS['output_correct_ex1b']
-
-            # Execute Additional Commands and Log Which Worked
-            logging.info("Executing additional commands for Drill B")
-            commands_to_test = ['./pid', 'pid', './char_in_str', 'char_in_str', './unique_str', 'unique_str']
-            for cmd in commands_to_test:
-                try:
-                    result = subprocess.run(
-                        [cmd],
-                        cwd=extract_path,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        universal_newlines=True,
-                        timeout=TIMEOUT_EXECUTION
-                    )
-                    if result.returncode == 0:
-                        log['Command Execution Results'][cmd] = 'Success'
-                        logging.info(f"Command '{cmd}' executed successfully.")
-                    else:
-                        log['Command Execution Results'][cmd] = f"Failed with return code {result.returncode}"
-                        logging.warning(f"Command '{cmd}' failed with return code {result.returncode}.")
-                        deductions += POINTS['output_correct_ex1b']  # Deduct points if commands fail
-                except subprocess.TimeoutExpired:
-                    log['Command Execution Results'][cmd] = "Timed out"
-                    logging.error(f"Command '{cmd}' timed out.")
-                    deductions += POINTS['output_correct_ex1b']
-                except FileNotFoundError:
-                    log['Command Execution Results'][cmd] = "Command not found"
-                    logging.error(f"Command '{cmd}' not found.")
-                    deductions += POINTS['output_correct_ex1b']
-                except Exception as e:
-                    log['Command Execution Results'][cmd] = f"Error: {str(e)}"
-                    logging.error(f"Error executing command '{cmd}': {e}")
-                    deductions += POINTS['output_correct_ex1b']
 
             # Check for Leftover Child Processes
             logging.info("Checking for leftover child processes")
             try:
                 # Get list of processes before execution
                 before_ps = subprocess.check_output(['ps', '-ef'], universal_newlines=True)
+                # Execute commands via ex1b.c (already done)
                 # Get list of processes after execution
                 after_ps = subprocess.check_output(['ps', '-ef'], universal_newlines=True)
                 # Find new processes that started after execution
@@ -719,20 +699,13 @@ def main():
 
     summary_file = os.path.join(SUMMARY_DIR, 'summary.json')
 
-    # Read expected outputs
+    # Read input commands
     try:
         with open(os.path.join(INPUT_DIR, 'input_ex1.txt'), 'r', encoding='utf-8') as f:
-            # Assuming input_ex1.txt contains both ex1a and ex1b inputs
-            # First line: ex1a arguments
-            # Subsequent lines: ex1b commands
-            lines = f.read().strip().splitlines()
-            if len(lines) < 3:
-                raise ValueError("input_ex1.txt must contain at least three lines: <output_filename> <seed>, followed by commands.")
-            output_filename, seed = lines[0].split()
-            commands = lines[1:]
-            expected_output_ex1a = ""  # No expected output
-            expected_output_ex1b = ""  # No expected output
-        logging.info("Loaded inputs for ex1.")
+            commands_to_send = f.read().strip().splitlines()
+        if len(commands_to_send) < 2:
+            raise ValueError("input_ex1.txt must contain at least two lines: <output_filename> <seed> and at least one command.")
+        logging.info("Loaded input commands for ex1.")
     except Exception as e:
         logging.error(f"Failed to read input_ex1.txt: {e}")
         return
@@ -762,8 +735,7 @@ def main():
             student_id=student_id,
             student_name=student_name,
             submission_folder=submission_folder,
-            expected_output_ex1a=expected_output_ex1a,
-            expected_output_ex1b=expected_output_ex1b,
+            commands_to_send=commands_to_send,
             expected_c_files=expected_c_files_ex1,
             extra_c_files=extra_c_files_ex1
         )
