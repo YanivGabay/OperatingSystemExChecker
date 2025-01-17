@@ -23,3 +23,32 @@ services:
       - ./ex1/input:/grading/input
       - ./ex1/summary:/grading/summary
       - ./ex1/logs:/grading/logs
+
+  grader_ex2:
+    build:
+      context: ./ex2
+      dockerfile: Dockerfile
+    volumes:
+      - ./ex2/submissions:/grading/submissions
+      - ./ex2/input:/grading/input
+      - ./ex2/summary:/grading/summary
+      - ./ex2/logs:/grading/logs
+  
+  grader_ex3:
+    build:
+      context: ./ex3
+      dockerfile: Dockerfile
+    volumes:
+      - ./ex3/submissions:/grading/submissions
+      - ./ex3/summary:/grading/summary
+      - ./ex3/logs:/grading/logs
+  
+  grader_ex4:
+    build:
+      context: ./ex4
+      dockerfile: Dockerfile
+    volumes:
+      - ./ex4/submissions:/grading/submissions
+
+      - ./ex4/summary:/grading/summary
+      - ./ex4/logs:/grading/logs

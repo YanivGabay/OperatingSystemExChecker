@@ -1,0 +1,27 @@
+# Dockerfile
+
+FROM rockylinux/rockylinux:8
+
+# Install necessary development tools and dependencies
+RUN dnf install -y \
+    gcc \
+    gcc-c++ \
+    valgrind \
+    tar \
+    python3 \
+    procps \
+    && dnf clean all
+
+RUN yum install -y procps
+
+# Set the working directory
+WORKDIR /grading
+
+# Copy the grading script into the container
+COPY grade.py /grading/grade.py
+
+# Ensure the script is executable
+RUN chmod +x /grading/grade.py
+
+# Set the entrypoint to run the Python script
+ENTRYPOINT ["python3", "/grading/grade.py"]
